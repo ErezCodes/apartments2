@@ -1,0 +1,30 @@
+EssentialsX-2.19.7: https://www.spigotmc.org/resources/essentialsx.9089/
+Vault 1.7.3: https://www.spigotmc.org/resources/vault.34315/
+GroupManager v2.9: https://www.spigotmc.org/resources/groupmanager.38875/
+WorldEdit 7.2.13: https://dev.bukkit.org/projects/worldedit/files/4162203
+PlaceHolderAPI?
+WorldGuard?
+
+original post: https://builtbybit.com/threads/custom-apartment-plugin-needed.712281/#post-4992192
+
+To do list:
+
+- something went wrong with buying an apartment, smallPlots doesn't get updated, Erez.yml doesn't get updated
+(maybe I corrupted regions.yml?)
+
+
+- my apartments (V)
+- sell apartment
+    - put the plot on top of the available plots config when sold
+- make it so that you won't be able to own the same apartment type more than once (V)
+- inviting people (V)
+- permission flags
+- apartments home
+    - apartments setHomePoint
+- apartments visit
+
+- medium/big plots support?
+- GroupManager support
+
+- command fillers
+- aliases in plugin.yml file

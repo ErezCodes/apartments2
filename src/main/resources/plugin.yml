@@ -1,0 +1,17 @@
+name: Apartments
+version: '${version}'
+main: me.erez.apartments.Main
+api-version: 1.16
+authors: [ Erez ]
+description: An apartments plugin requested by MxRox#5215 215633741140197377
+website: https://builtbybit.com/members/erez_.430071/
+
+commands:
+  dinero:
+    description: hoy cobre
+  apartments:
+    description: default apartments command
+  devTools:
+    description: developer tools
+  invitation:
+    description: handle an apartment invitation
