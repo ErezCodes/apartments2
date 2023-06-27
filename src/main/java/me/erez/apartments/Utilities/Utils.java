@@ -4,6 +4,7 @@ import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector3;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
+import org.anjocaido.groupmanager.GroupManager;
 import org.bukkit.*;
 import org.bukkit.block.CreatureSpawner;
 import org.bukkit.enchantments.Enchantment;
@@ -16,6 +17,7 @@ import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.PluginManager;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -418,6 +420,20 @@ public class Utils {
             return ((size / 9) * 9) + 9;
         }
 
+    }
+
+    public static class GroupManager{
+        public static boolean hasRole(Player player, String roleName) {
+            PluginManager pluginManager = Bukkit.getPluginManager();
+            Plugin groupManagerPlugin = pluginManager.getPlugin("GroupManager");
+
+            if (groupManagerPlugin != null && groupManagerPlugin instanceof org.anjocaido.groupmanager.GroupManager) {
+                org.anjocaido.groupmanager.GroupManager groupManager = (org.anjocaido.groupmanager.GroupManager) groupManagerPlugin;
+                return groupManager.getWorldsHolder().getWorldPermissions(player).getGroup(player.getName()).equalsIgnoreCase(roleName);
+            }
+
+            return false;
+        }
     }
 
 }

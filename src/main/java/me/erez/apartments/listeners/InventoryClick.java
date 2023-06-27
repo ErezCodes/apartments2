@@ -4,6 +4,9 @@ import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.WorldEditException;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldedit.entity.BaseEntity;
+import com.sk89q.worldedit.entity.Entity;
+import com.sk89q.worldedit.extent.Extent;
 import com.sk89q.worldedit.extent.clipboard.Clipboard;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
@@ -11,16 +14,21 @@ import com.sk89q.worldedit.extent.clipboard.io.ClipboardReader;
 import com.sk89q.worldedit.function.operation.Operation;
 import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.math.BlockVector3;
+import com.sk89q.worldedit.math.Vector3;
 import com.sk89q.worldedit.regions.Region;
 import com.sk89q.worldedit.session.ClipboardHolder;
+import com.sk89q.worldedit.util.Location;
 import com.sk89q.worldedit.world.World;
+import com.sk89q.worldedit.world.block.BaseBlock;
+import com.sk89q.worldedit.world.block.BlockState;
+import com.sk89q.worldedit.world.block.BlockStateHolder;
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.domains.DefaultDomain;
+import com.sk89q.worldguard.protection.flags.*;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.ProtectedCuboidRegion;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
-import me.erez.apartments.Apartment;
 import me.erez.apartments.ApartmentType;
 import me.erez.apartments.Files.DataManager;
 import me.erez.apartments.Files.PlotsManager;
@@ -28,29 +36,27 @@ import me.erez.apartments.Main;
 import me.erez.apartments.Utilities.Utils;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.TextComponent;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Material;
-import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.*;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.util.BlockVector;
+import org.bukkit.util.Vector;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
+
+import static me.erez.apartments.Utilities.Utils.GroupManager.hasRole;
 
 public class InventoryClick implements Listener {
     private Main plugin;
@@ -69,18 +75,19 @@ public class InventoryClick implements Listener {
 
         String title = event.getView().getTitle();
         Player player = (Player) event.getView().getPlayer();
+
         String playerName = player.getName();
         int slot = event.getSlot();
 
         if (title.equals(ChatColor.GOLD + "Apartments Menu")){
             event.setCancelled(true);
 
-            if (slot == 5){
+            if (slot == 6){
                 apartmentsForPurchaseMenu(player);
                 return;
             }
 
-            if (slot == 3){
+            if (slot == 4){
                 String uuid = player.getUniqueId().toString();
                 String path = plugin.getDataFolder().getPath() + "/apartments/" + uuid + ".yml";
                 File file = new File(path);
@@ -95,9 +102,15 @@ public class InventoryClick implements Listener {
                 dataManager.reloadConfig();
                 try{
                     for (String apartment : dataManager.getConfig().getConfigurationSection("owned").getKeys(false)) {
-                    String apartmentType = dataManager.getConfig().getString("owned." + apartment + ".type");
-                    apartmentTypes.put(plugin.apartmentTypes.get(apartmentType), apartment);
+                        String apartmentType = dataManager.getConfig().getString("owned." + apartment + ".type");
+                        apartmentTypes.put(plugin.apartmentTypes.get(apartmentType), apartment);
                     }
+                    if (dataManager.getConfig().getConfigurationSection("owned").getKeys(false).isEmpty()){
+                        player.sendMessage(ChatColor.YELLOW + "You don't have any apartments");
+                        player.closeInventory();
+                        return;
+                    }
+
                 } catch (Exception e){
                     player.sendMessage(ChatColor.YELLOW + "You don't have any apartments");
                     player.closeInventory();
@@ -116,11 +129,38 @@ public class InventoryClick implements Listener {
 
                 int index = 0;
                 for (ApartmentType apartmentType : apartmentTypes.keySet()){
-                    myApartments.setItem(index, apartmentType.toItemMyApartments(apartmentTypes.get(apartmentType)));
+                    myApartments.setItem(index, apartmentType.toItemMyApartments());
                     index++;
                 }
 
                 player.openInventory(myApartments);
+
+            }
+
+            if (slot == 2){
+                DataManager dataManager = new DataManager(plugin, player.getUniqueId().toString());
+                ConfigurationSection section = dataManager.getConfig().getConfigurationSection("guest");
+                if (section == null ||
+                        dataManager.getConfig().getConfigurationSection("guest").getKeys(false).size() == 0) {
+                    player.sendMessage(ChatColor.YELLOW + "You haven't been invited to any apartment yet");
+                    player.closeInventory();
+                    return;
+                }
+                ArrayList<ItemStack> content = new ArrayList<>();
+
+                dataManager.reloadConfig();
+                for (String owner : dataManager.getConfig().getConfigurationSection("guest").getKeys(false)){
+                    String ownerName = Bukkit.getOfflinePlayer(UUID.fromString(owner)).getName();
+                    content.add(Utils.Items.createGuiSkullByNameSimple(ownerName, ChatColor.LIGHT_PURPLE
+                            + "Visit " + ownerName));
+                }
+                Inventory visit = Bukkit.createInventory(null, Utils.Inventories.figureInventorySize(content.size())
+                        , ChatColor.GOLD + "Visit a friend");
+
+                for (ItemStack skull : content)
+                    visit.addItem(skull);
+
+                player.openInventory(visit);
 
             }
 
@@ -205,7 +245,19 @@ public class InventoryClick implements Listener {
             }
 
                 //warp
-                if (slot == 4){}
+                if (slot == 4){
+
+                    RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+                    RegionManager regions = container.get(BukkitAdapter.adapt(player.getWorld()));
+                    ProtectedRegion region = regions.getRegion(plugin.carryingUUID.get(playerName)[0]);
+                    Location location = region.getFlag(Flags.TELE_LOC);
+                    com.sk89q.worldedit.entity.Player sk89qPlayer = BukkitAdapter.adapt(player);
+                    sk89qPlayer.setLocation(location);
+
+                    player.closeInventory();
+                    return;
+
+                }
 
                 //sell
                 if (slot == 6){
@@ -288,28 +340,21 @@ public class InventoryClick implements Listener {
                     }
                     plugin.getEconomy().withdrawPlayer(player, cost);
                     player.sendMessage(ChatColor.GREEN + "You have successfully purchased a new " + meta.getDisplayName());
-                    String uuid = player.getUniqueId().toString();
                     String displayName = meta.getDisplayName();
                     displayName = ChatColor.stripColor(displayName);
                     ApartmentType apartmentType = plugin.apartmentTypes.get(displayName);
-                    Apartment apartment = new Apartment(uuid, apartmentType);
-                    if (plugin.apartments.containsKey(uuid)) {
-                        plugin.apartments.get(uuid).add(apartment);
-                    } else {
-                        ArrayList arrayList = new ArrayList();
-                        arrayList.add(apartment);
-                        plugin.apartments.put(uuid, arrayList);
-                    }
 
+
+                    String name = apartmentType.getName();;
                     String size = apartmentType.getPlotSize();
                     String schematicFileName = apartmentType.getSchematicFileName();
                     UUID ownerUUID = player.getUniqueId();
 
-                    configActions(schematicFileName, ownerUUID, size);
+                    String apartmentID = configActions(schematicFileName, ownerUUID, size, BukkitAdapter.adapt(player));
 
                     DataManager dataManager = new DataManager(plugin, ownerUUID.toString());
                     dataManager.reloadConfig();
-                    String path = "owned." + uuid;
+                    String path = "owned." + apartmentID;
                     dataManager.getConfig().set(path + ".type", displayName);
                     dataManager.saveConfig();
 
@@ -401,7 +446,18 @@ public class InventoryClick implements Listener {
             World world = BukkitAdapter.adapt(player.getWorld());
             RegionManager regions = container.get(world);
             ProtectedRegion region = regions.getRegion(apartmentUUID);
-            region.getMembers().removePlayer(Bukkit.getPlayer(name).getUniqueId());
+            UUID guestUUID = Bukkit.getOfflinePlayer(name).getUniqueId();
+            region.getMembers().removePlayer(guestUUID);
+
+            DataManager dataManager = new DataManager(plugin, guestUUID.toString());
+            dataManager.reloadConfig();
+            String ownerID = player.getUniqueId().toString();
+            dataManager.getConfig().set("guest." + ownerID + "." + apartmentUUID, null);
+            ConfigurationSection section = dataManager.getConfig().getConfigurationSection("guest." + ownerID);
+            if (section == null || section.getKeys(false).size() == 0)
+                dataManager.getConfig().set("guest." + ownerID, null);
+            dataManager.saveConfig();
+
         }
         if (title.equals(ChatColor.RED + "Sell apartment")){
             event.setCancelled(true);
@@ -421,6 +477,7 @@ public class InventoryClick implements Listener {
                     World world = BukkitAdapter.adapt(player.getWorld());
                     RegionManager regions = container.get(world);
                     ProtectedRegion region = regions.getRegion(apartmentUUID);
+                    String ownerUUID = player.getUniqueId().toString();
 
                     try {
 
@@ -428,16 +485,16 @@ public class InventoryClick implements Listener {
 
                             DataManager dataManager = new DataManager(plugin, uuid.toString());
                             dataManager.reloadConfig();
-                            dataManager.getConfig().set("guest." + apartmentUUID, null);
+                            dataManager.getConfig().set("guest." + ownerUUID + "." + apartmentUUID, null);
                             dataManager.saveConfig();
                         }
 
-                    } catch (Exception ignored) {
-                    }
+                    } catch (Exception ignored) {}
 
                     DataManager dataManager = new DataManager(plugin, player.getUniqueId().toString());
                     dataManager.reloadConfig();
                     dataManager.getConfig().set("owned." + apartmentUUID, null);
+                    dataManager.saveConfig();
 
                     double percentage = plugin.getConfig().getDouble("defaultValues.returnOnSell") / 100.0;
                     ApartmentType apartmentType = plugin.apartmentTypes.get(plugin.carryingUUID.get(playerName)[1]);
@@ -448,31 +505,35 @@ public class InventoryClick implements Listener {
                     String size = apartmentType.getPlotSize();
                     PlotsManager plotsManager = new PlotsManager(plugin, size);
                     plotsManager.reloadConfig();
-                    String config = plotsManager.getConfig().saveToString();
-                    config = config.replace("plots:", "");
 
                     BlockVector3 minimum = region.getMinimumPoint();
                     BlockVector3 maximum = region.getMaximumPoint();
 
 
-                    StringBuilder sb = new StringBuilder();
-                    sb.append(UUID.randomUUID()).append("\n");
 
                     double x = (minimum.getX() + maximum.getX()) / 2.0;
-                    double y = minimum.getY();
+                    double y = 4;
                     double z = (minimum.getZ() + maximum.getZ()) / 2.0;
+
+                    //castMessage("x: " + x + "\n" + "y: " + y + "\n" + "z:" + z + "world: " + world);
+
                     String worldStr = world.getName();
-                    sb.append("  x: ").append(x).append("\n");
-                    sb.append("  y: ").append(y).append("\n");
-                    sb.append("  z: ").append(z).append("\n");
-                    sb.append("  world: ").append(worldStr).append("\n");
-                    sb.append(config);
-                    plotsManager.getConfig().set("plots", null);
-                    plotsManager.getConfig().set("plots", sb.toString());
+                    String newID = UUID.randomUUID().toString();
+                    String path = "plots." + newID;
+
+                    plotsManager.getConfig().set(path + ".x", x);
+                    plotsManager.getConfig().set(path + ".y", y);
+                    plotsManager.getConfig().set(path + ".z", z);
+                    plotsManager.getConfig().set(path + ".world", worldStr);
                     plotsManager.saveConfig();
 
                     if (size.equalsIgnoreCase("small"))
                         paste("45", world, x, y, z);
+                    if (size.equalsIgnoreCase("medium"))
+                        paste("medium", world, x, y, z);
+                    if (size.equalsIgnoreCase("big"))
+                        paste("big", world, x, y, z);
+
 
                     regions.removeRegion(apartmentUUID);
 
@@ -488,6 +549,115 @@ public class InventoryClick implements Listener {
 
             }
         }
+        if (title.equals(ChatColor.GOLD + "Visit a friend")){
+            event.setCancelled(true);
+            ItemStack itemStack = event.getCurrentItem();
+            if (!itemStack.getType().equals(Material.PLAYER_HEAD)) return;
+            String itemName[] = itemStack.getItemMeta().getDisplayName().split(" ");
+            String owner = ChatColor.stripColor(itemName[1]);
+            String ownerUUID = Bukkit.getOfflinePlayer(owner).getUniqueId().toString();
+
+            DataManager dataManager = new DataManager(plugin, player.getUniqueId().toString());
+            dataManager.reloadConfig();
+
+            ArrayList<ItemStack> content = new ArrayList<>();
+
+            for (String apartmentID : dataManager.getConfig().getConfigurationSection("guest." + ownerUUID).getKeys(false)){
+                ApartmentType apartmentType = plugin.apartmentTypes.get(dataManager.getConfig().getString("guest."
+                + ownerUUID + "." + apartmentID + ".type"));
+                content.add(apartmentType.toItemVisit());
+            }
+
+            Inventory apartments = Bukkit.createInventory(null, Utils.Inventories.figureInventorySize(content.size())
+            , ChatColor.GOLD + owner + "s' apartments");
+
+            for (ItemStack item : content)
+                apartments.addItem(item);
+
+            player.openInventory(apartments);
+
+        }
+        if (title.contains("s'")){
+            event.setCancelled(true);
+            ClickType clickType = event.getClick();
+
+            if (clickType.isLeftClick()){
+                DataManager dataManager = new DataManager(plugin, player.getUniqueId().toString());
+                dataManager.reloadConfig();
+
+                String owner = ChatColor.stripColor(title);
+                owner = owner.split(" ")[0];
+                owner = owner.substring(0, owner.length() - 2);
+                String ownerUUID = Bukkit.getOfflinePlayer(owner).getUniqueId().toString();
+
+                DataManager research = new DataManager(plugin, ownerUUID);
+                research.reloadConfig();
+
+                ItemStack itemStack = event.getCurrentItem();
+                String type = ChatColor.stripColor(itemStack.getItemMeta().getDisplayName());
+                String regionID = null;
+
+                for (String apartmentID : research.getConfig().getConfigurationSection("owned").getKeys(false)){
+                    if (research.getConfig().getString("owned." + apartmentID + ".type").equals(type)){
+                        regionID = apartmentID;
+                        break;
+                    }
+                }
+
+                RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+                RegionManager regions = container.get(BukkitAdapter.adapt(player.getWorld()));
+                ProtectedRegion region = regions.getRegion(regionID);
+                Location location = region.getFlag(Flags.TELE_LOC);
+                com.sk89q.worldedit.entity.Player sk89qPlayer = BukkitAdapter.adapt(player);
+                sk89qPlayer.setLocation(location);
+
+            }
+
+            if (clickType.isShiftClick() && clickType.isRightClick()){
+                DataManager dataManager = new DataManager(plugin, player.getUniqueId().toString());
+                dataManager.reloadConfig();
+
+                String owner = ChatColor.stripColor(title);
+                owner = owner.split(" ")[0];
+                owner = owner.substring(0, owner.length() - 2);
+                String ownerUUID = Bukkit.getOfflinePlayer(owner).getUniqueId().toString();
+
+                DataManager research = new DataManager(plugin, ownerUUID);
+                research.reloadConfig();
+
+                ItemStack itemStack = event.getCurrentItem();
+                String type = ChatColor.stripColor(itemStack.getItemMeta().getDisplayName());
+                String regionID = null;
+
+                for (String apartmentID : research.getConfig().getConfigurationSection("owned").getKeys(false)){
+                    if (research.getConfig().getString("owned." + apartmentID + ".type").equals(type)){
+                        regionID = apartmentID;
+                        break;
+                    }
+                }
+
+                dataManager.getConfig().set("guest." + ownerUUID + "." + regionID, null);
+
+                ConfigurationSection section = dataManager.getConfig().getConfigurationSection("guest." + ownerUUID);
+                if (section == null || section.getKeys(false).size() == 0){
+                    dataManager.getConfig().set("guest." + owner, null);
+                }
+
+                dataManager.saveConfig();
+
+                itemStack.setAmount(0);
+                itemStack.setType(Material.AIR);
+
+                RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+                RegionManager regions = container.get(BukkitAdapter.adapt(player.getWorld()));
+                ProtectedRegion region = regions.getRegion(regionID);
+                region.getMembers().removePlayer(player.getUniqueId());
+
+                Utils.Sounds.success(player);
+                return;
+            }
+
+        }
 
 
 
@@ -495,12 +665,80 @@ public class InventoryClick implements Listener {
 
 
     public void apartmentsForPurchaseMenu(Player player){
-        int types = plugin.apartmentTypes.size();
+
+        int ownedHouses;
+        String role = null;
+
+        DataManager dataManager = new DataManager(plugin, player.getUniqueId().toString());
+        dataManager.reloadConfig();
+        try {
+            ownedHouses = dataManager.getConfig().getConfigurationSection("owned").getKeys(false).size();
+        } catch (Exception ignored){
+            ownedHouses = 0;
+        }
+        plugin.reloadConfig();
+        String tooManyHouses = ChatColor.RED + "You have reached your maximum capacity of owning houses";
+
+//        if (hasRole(player, "Emperor")){
+//            if (plugin.getConfig().getInt("defaultValues.EmperorMaxHouses") >= ownedHouses){
+//                player.sendMessage(tooManyHouses);
+//                return;
+//            }
+//        }
+//
+//        if (hasRole(player, "President")){
+//            if (plugin.getConfig().getInt("defaultValues.PresidentMaxHouses") >= ownedHouses){
+//                player.sendMessage(tooManyHouses);
+//                return;
+//            }
+//        }
+//
+//        if (hasRole(player, "Governor")){
+//            if (plugin.getConfig().getInt("defaultValues.GovernorMaxHouses") >= ownedHouses){
+//                player.sendMessage(tooManyHouses);
+//                return;
+//            }
+//        }
+//
+//        if (hasRole(player, "KingPin")){
+//            if (plugin.getConfig().getInt("defaultValues.KingPinMaxHouses") >= ownedHouses){
+//                player.sendMessage(tooManyHouses);
+//                return;
+//            }
+//        }
+//
+//        if (hasRole(player, "Member")){
+//            if (plugin.getConfig().getInt("defaultValues.MemberMaxHouses") >= ownedHouses){
+//                player.sendMessage(tooManyHouses);
+//                return;
+//            }
+//        }
+        //ChatGPT suggestion, might not work lol
+        Map<String, Integer> roleMaxHouses = new HashMap<>();
+        roleMaxHouses.put("Emperor", plugin.getConfig().getInt("defaultValues.EmperorMaxHouses"));
+        roleMaxHouses.put("President", plugin.getConfig().getInt("defaultValues.PresidentMaxHouses"));
+        roleMaxHouses.put("Governor", plugin.getConfig().getInt("defaultValues.GovernorMaxHouses"));
+        roleMaxHouses.put("Kingpin", plugin.getConfig().getInt("defaultValues.KingPinMaxHouses"));
+        roleMaxHouses.put("Member", plugin.getConfig().getInt("defaultValues.MemberMaxHouses"));
+
+        // Check if the player's role has exceeded the maximum house value
+        for (Map.Entry<String, Integer> entry : roleMaxHouses.entrySet()) {
+            role = entry.getKey();
+            int maxHouses = entry.getValue();
+
+            if (hasRole(player, role)){
+
+                if (ownedHouses >= maxHouses) {
+                    player.sendMessage(tooManyHouses);
+                    return;
+                }
+                else break;
+            }
+
+        }
 
         Inventory apartmentsForPurchase = Bukkit.createInventory(null, 54, ChatColor.GOLD + "Apartments for sale");
         ItemStack emptyPane = Utils.Items.createGuiItemSimple(Material.PURPLE_STAINED_GLASS_PANE, " ");
-
-        DataManager dataManager = new DataManager(plugin, player.getUniqueId().toString());
 
         dataManager.reloadConfig();
         ArrayList<String> blacklisted = new ArrayList<>();
@@ -510,7 +748,36 @@ public class InventoryClick implements Listener {
                 blacklisted.add(dataManager.getConfig().getString("owned." + uuid + ".type"));
         } catch (Exception ignored){}
 
-
+        if (!hasRole(player, "Apartments.V1"))
+            blacklisted.add("V1");
+        if (!hasRole(player, "Apartments.V3"))
+            blacklisted.add("V3");
+        if (!hasRole(player, "Apartments.V5"))
+            blacklisted.add("V5");
+        
+        switch(role) {
+            case "Emperor":
+                break;
+            case "President":
+                blacklisted.add("Emp");
+                break;
+            case "Governor":
+                blacklisted.add("Emp");
+                blacklisted.add("pres");
+                break;
+            case "Kingpin":
+                blacklisted.add("Emp");
+                blacklisted.add("pres");
+                blacklisted.add("gov");
+                break;
+            case "Member":
+                blacklisted.add("Emp");
+                blacklisted.add("pres");
+                blacklisted.add("gov");
+                blacklisted.add("kingpin");
+                break;
+        }
+            
 
 
         for (int i = 0; i < 9; i++)
@@ -529,7 +796,7 @@ public class InventoryClick implements Listener {
             boolean exists = false;
 
             for (String remove : blacklisted){
-                if (remove.equals(apartmentType.getName())) {
+                if (remove.equalsIgnoreCase(apartmentType.getType())) {
                     exists = true;
                     break;
                 }
@@ -549,8 +816,10 @@ public class InventoryClick implements Listener {
     public void myApartmentMenu(Player player){
         String name = plugin.carryingUUID.get(player.getName())[1];
         Inventory inventory = Bukkit.createInventory(null, 9, ChatColor.GOLD + ChatColor.stripColor(name));
-        ItemStack sell = Utils.Items.createGuiItemSimple(Material.BARRIER, ChatColor.RED + "Sell apartment",
-                ChatColor.BOLD + "" + ChatColor.DARK_RED + "Warning: this action is irreversible");
+        ArrayList<String> lorey = new ArrayList<>();
+        lorey.add(ChatColor.BOLD + ""  + ChatColor.DARK_RED + "Warning: this action is irreversible");
+        lorey.add(ChatColor.UNDERLINE + ""  + ChatColor.RED + "(This will delete all your items in this house as well)");
+        ItemStack sell = Utils.Items.createGuiItemComplex(Material.BARRIER, ChatColor.RED + "Sell apartment", lorey);
         inventory.setItem(6, sell);
         ItemStack home = Utils.Items.createGuiItemSimple(Material.OAK_DOOR,
                 ChatColor.AQUA + "Go home", ChatColor.DARK_AQUA + "Warp to your apartment");
@@ -570,8 +839,9 @@ public class InventoryClick implements Listener {
         player.openInventory(inventory);
     }
 
-    public void configActions(String apartmentSchematicName, UUID ownerUUID, String size){
+    public String configActions(String apartmentSchematicName, UUID ownerUUID, String size, com.sk89q.worldedit.entity.Player sk89qPlayer){
         PlotsManager plotsManager = new PlotsManager(plugin, size.toLowerCase());
+        plotsManager.reloadConfig();
         String firstUUID = plotsManager.getConfig().getConfigurationSection("plots").getKeys(false).iterator().next();
         String path = "plots." + firstUUID;
         double x = plotsManager.getConfig().getDouble(path + ".x");
@@ -581,35 +851,99 @@ public class InventoryClick implements Listener {
         org.bukkit.World bukkitWorld = Bukkit.getWorld(worldName);
         World world = BukkitAdapter.adapt(bukkitWorld);
         paste(apartmentSchematicName, world, x, y, z);
-        plotsManager.getConfig().set(firstUUID, null);
+        plotsManager.getConfig().set(path, null);
+        plotsManager.saveConfig();
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
         RegionManager regions = container.get(world);
-        ProtectedCuboidRegion cuboidRegion = (ProtectedCuboidRegion) regions.getRegion(firstUUID);
+
+        BlockVector3 minimum = null; BlockVector3 maximum = null;
+        if (size.equalsIgnoreCase("small")){
+            minimum = BlockVector3.at(x - 22.5, 0, z - 22.5);
+            maximum = BlockVector3.at(x + 22.5, 255, z + 22.5);
+        }
+
+        else if (size.equalsIgnoreCase("medium")){
+            minimum = BlockVector3.at(x - 31.5, 0, z - 46.5);
+            maximum = BlockVector3.at(x + 31.5, 255, z + 46.5);
+        }
+
+        else if (size.equalsIgnoreCase("big")){
+            minimum = BlockVector3.at(x - 36.5, 0, z - 57.5);
+            maximum = BlockVector3.at(x + 36.5, 255, z + 57.5);
+        }
+
+        ProtectedCuboidRegion cuboidRegion = new ProtectedCuboidRegion(firstUUID, minimum, maximum);
+        regions.addRegion(cuboidRegion);
         DefaultDomain defaultDomain = new DefaultDomain();
         defaultDomain.addPlayer(ownerUUID);
         cuboidRegion.setOwners(defaultDomain);
+
+        cuboidRegion.setFlag(Flags.INTERACT, StateFlag.State.DENY);
+        cuboidRegion.setFlag(Flags.INTERACT.getRegionGroupFlag(), RegionGroup.NON_MEMBERS);
+
+        cuboidRegion.setFlag(Flags.CHEST_ACCESS, StateFlag.State.ALLOW);
+        cuboidRegion.setFlag(Flags.CHEST_ACCESS.getRegionGroupFlag(), RegionGroup.MEMBERS);
+
+
+        double relativeX;
+        double relativeY;
+        double relativeZ;
+        double pitch;
+        double yaw;
+        com.sk89q.worldedit.util.Location sk89qLocation;
+
+        plugin.reloadConfig();
+        try {
+            for (String keys : plugin.getConfig().getConfigurationSection("apartmentTypes").getKeys(false)) {
+                if (plugin.getConfig().getString("apartmentTypes." + keys + ".schematic-file-name").equals(apartmentSchematicName)) {
+                    relativeX = x + plugin.getConfig().getDouble("apartmentTypes." + keys + "spawnpoint.x");
+                    relativeY = y + plugin.getConfig().getDouble("apartmentTypes." + keys + "spawnpoint.y");
+                    relativeZ = z + plugin.getConfig().getDouble("apartmentTypes." + keys + "spawnpoint.z");
+                    pitch = plugin.getConfig().getDouble("apartmentTypes." + keys + "spawnpoint.pitch");
+                    yaw = plugin.getConfig().getDouble("apartmentTypes." + keys + "spawnpoint.yaw");
+                    sk89qLocation = new com.sk89q.worldedit.util.Location(world, relativeX, relativeY, relativeZ);
+                    sk89qLocation.setPitch((float) pitch);
+                    sk89qLocation.setYaw((float) yaw);
+                    cuboidRegion.setFlag(Flags.TELE_LOC, sk89qLocation);
+                    sk89qPlayer.setLocation(sk89qLocation);
+                    break;
+                }
+            }
+        } catch (Exception ignored){}
+
+
+
+        return firstUUID;
     }
 
     public void paste(String name, World world, double x, double y, double z){
-        Clipboard clipboard = null;
-        File file = new File( "plugins/WorldEdit/schematics/" + name + ".schem");
-        ClipboardFormat format = ClipboardFormats.findByFile(file);
-        try (ClipboardReader reader = format.getReader(new FileInputStream(file))) {
-            clipboard = reader.read();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        try {
+            Clipboard clipboard = null;
+            File file = new File("plugins/WorldEdit/schematics/" + name + ".schem");
+            if (name.equalsIgnoreCase("45") || name.equalsIgnoreCase("medium") || name.equalsIgnoreCase("big")){}
+            else {y++;}
+            if (name.equalsIgnoreCase("EMP")) y++;
 
-        try (EditSession editSession = WorldEdit.getInstance().newEditSession(world)) {
-            Operation operation = new ClipboardHolder(clipboard)
-                    .createPaste(editSession)
-                    .to(BlockVector3.at(x, y, z))
-                    // configure here
-                    .build();
-            Operations.complete(operation);
-        } catch (WorldEditException e) {
+            ClipboardFormat format = ClipboardFormats.findByFile(file);
+            try (ClipboardReader reader = format.getReader(new FileInputStream(file))) {
+                clipboard = reader.read();
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            try (EditSession editSession = WorldEdit.getInstance().newEditSession(world)) {
+                Operation operation = new ClipboardHolder(clipboard)
+                        .createPaste(editSession)
+                        .to(BlockVector3.at(x, y, z))
+                        // configure here
+                        .build();
+                Operations.complete(operation);
+            } catch (WorldEditException e) {
+                e.printStackTrace();
+            }
+        } catch (Exception e){
             e.printStackTrace();
         }
     }

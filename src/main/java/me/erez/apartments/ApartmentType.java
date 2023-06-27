@@ -5,6 +5,8 @@ import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.ArrayList;
+
 public class ApartmentType {
 
     private String name;
@@ -13,22 +15,37 @@ public class ApartmentType {
     private String schematicFileName;
     private String plotSize;
 
-    public ApartmentType(String name, double cost, Material icon, String schematicFileName, String plotSize) {
+
+
+    private String type;
+
+    public ApartmentType(String name, double cost, Material icon, String schematicFileName, String plotSize, String type) {
         this.name = name;
         this.cost = cost;
         this.icon = icon;
         this.schematicFileName = schematicFileName;
         this.plotSize = plotSize;
+        this.type = type;
     }
 
     public ItemStack toItem(){
         ItemStack item = Utils.Items.createGuiItemSimple(icon, ChatColor.GREEN + name, ChatColor.DARK_GREEN + "Cost: $" + cost);
         return item;
     }
-    public ItemStack toItemMyApartments(String uuid){
+    public ItemStack toItemMyApartments(){
         ItemStack item = Utils.Items.createGuiItemSimple(icon, ChatColor.DARK_AQUA + name);
         return item;
     }
+    public ItemStack toItemVisit(){
+        ArrayList<String> lore = new ArrayList<>();
+        lore.add(ChatColor.GREEN + "[Left Click] " + ChatColor.WHITE + "to warp to the apartment");
+        lore.add(ChatColor.RED + "[Shift Right Click] " + ChatColor.WHITE + "to " + ChatColor.DARK_RED + "leave"
+                + ChatColor.WHITE + " the apartment");
+        ItemStack item = Utils.Items.createGuiItemComplex(icon, ChatColor.LIGHT_PURPLE + name, lore);
+        return item;
+    }
+
+
 
     @Override
     public String toString() {
@@ -67,4 +84,10 @@ public class ApartmentType {
     }
     public String getPlotSize() {return plotSize;}
     public void setPlotSize(String plotSize) {this.plotSize = plotSize;}
+    public String getType() {
+        return type;
+    }
+    public void setType(String type) {
+        this.type = type;
+    }
 }

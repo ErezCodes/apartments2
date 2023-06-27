@@ -2,47 +2,57 @@ package me.erez.apartments.commands;
 
 import com.sk89q.worldedit.*;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldedit.extent.Extent;
 import com.sk89q.worldedit.extent.clipboard.Clipboard;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardReader;
 import com.sk89q.worldedit.function.operation.Operation;
 import com.sk89q.worldedit.function.operation.Operations;
+import com.sk89q.worldedit.math.BlockVector2;
 import com.sk89q.worldedit.math.BlockVector3;
+import com.sk89q.worldedit.math.Vector2;
 import com.sk89q.worldedit.math.Vector3;
+import com.sk89q.worldedit.regions.CuboidRegion;
 import com.sk89q.worldedit.regions.Region;
 import com.sk89q.worldedit.session.ClipboardHolder;
 import com.sk89q.worldedit.session.SessionManager;
 import com.sk89q.worldedit.util.formatting.text.TextComponent;
 import com.sk89q.worldedit.world.World;
 import com.sk89q.worldguard.WorldGuard;
+import com.sk89q.worldguard.protection.flags.Flags;
+import com.sk89q.worldguard.protection.flags.LocationFlag;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.managers.storage.StorageException;
 import com.sk89q.worldguard.protection.regions.ProtectedCuboidRegion;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
-import me.erez.apartments.Apartment;
 import me.erez.apartments.ApartmentType;
 import me.erez.apartments.Files.PlotsManager;
 import me.erez.apartments.Main;
 import me.erez.apartments.Utilities.Utils;
+import org.anjocaido.groupmanager.GroupManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.PluginManager;
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.Yaml;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.bukkit.ChatColor.*;
@@ -62,22 +72,29 @@ public class devTools implements CommandExecutor {
         String argument = args[0];
         if (!player.isOp()) return true;
 
-        if (argument.equalsIgnoreCase("menu"))
-            apartmentsForPurchaseMenu(player);
-
-        else if (argument.equalsIgnoreCase("toString")){
-            for (String name : plugin.apartments.keySet()){
-                player.sendMessage(name);
-                for (Apartment apartment : plugin.apartments.get(name)){
-                    player.sendMessage(apartment.toString());
-                }
-
-            }
-
+        if (argument.length() == 0){
+            player.sendMessage(ChatColor.YELLOW + "Please include an argument (addPlot/pastePlot/findCeneter/apartmentTypes)");
+            return true;
         }
 
-        else if (argument.equalsIgnoreCase("saveall")){
-            plugin.saveAll();
+//        else if (argument.equalsIgnoreCase("toString")){
+//            for (String name : plugin.apartments.keySet()){
+//                player.sendMessage(name);
+//                for (Apartment apartment : plugin.apartments.get(name)){
+//                    player.sendMessage(apartment.toString());
+//                }
+//
+//            }
+//
+//        }
+//
+//        else if (argument.equalsIgnoreCase("saveall")){
+//            plugin.saveAll();
+//        }
+
+        else if (argument.equalsIgnoreCase("papi")){
+            boolean hasRole = Utils.GroupManager.hasRole(player, "Member");
+            player.sendMessage(hasRole + "");
         }
 
         else if (argument.equalsIgnoreCase("addPlot")){
@@ -115,20 +132,27 @@ public class devTools implements CommandExecutor {
                     return true;
                 }
 
-                Bukkit.broadcastMessage("HERE");
+                //Bukkit.broadcastMessage("HERE");
                 fillConfig(region, type, uuid);
 
 
             }
 
             else if (type.equalsIgnoreCase("medium")){
+
+                if (width != 63 || length != 93){
+                    player.sendMessage(ChatColor.RED + "The selected region isn't 63x93");
+                    incorrectMeasureMessage(player, width, length);
+                    return true;
+                }
+
                 fillConfig(region, type, uuid);
             }
 
             else if (type.equalsIgnoreCase("big")){
 
                 if (width != 73 || length != 115){
-                    player.sendMessage(ChatColor.RED + "The selected region isn't 74x116");
+                    player.sendMessage(ChatColor.RED + "The selected region isn't 73x115");
                     incorrectMeasureMessage(player, width, length);
                     return true;
                 }
@@ -228,6 +252,123 @@ public class devTools implements CommandExecutor {
             player.sendMessage("[1]: " + plugin.carryingUUID.get(player.getName())[1]);
         }
 
+        else if (argument.equalsIgnoreCase("config")){
+            PlotsManager plotsManager = new PlotsManager(plugin, "small");
+            plotsManager.reloadConfig();
+            String config = plotsManager.getConfig().saveToString();
+            config = config.replace("plots:", "");
+
+            BlockVector3 minimum = BlockVector3.at(0, 0, 0);
+            BlockVector3 maximum = BlockVector3.at(45, 255, 45);
+
+
+            StringBuilder sb = new StringBuilder();
+            sb.append(UUID.randomUUID()).append("\n");
+
+            double x = (minimum.getX() + maximum.getX()) / 2.0;
+            double y = minimum.getY();
+            double z = (minimum.getZ() + maximum.getZ()) / 2.0;
+            String worldStr = "world";
+            sb.append("  x: ").append(x).append("\n");
+            sb.append("  y: ").append(y).append("\n");
+            sb.append("  z: ").append(z).append("\n");
+            sb.append("  world: ").append(worldStr).append("\n");
+            sb.append(config);
+            plotsManager.getConfig().set("plots", null);
+            String result = sb.toString();
+            result = result.replaceAll("\\|", "");
+            plotsManager.getConfig().set("plots", result);
+            plotsManager.saveConfig();
+        }
+
+        else if (argument.equalsIgnoreCase("config2")){
+
+            PlotsManager plotsManager = new PlotsManager(plugin, "small");
+            plotsManager.reloadConfig();
+
+            BlockVector3 minimum = BlockVector3.at(0, 0, 0);
+            BlockVector3 maximum = BlockVector3.at(45, 255, 45);
+
+            double x = (minimum.getX() + maximum.getX()) / 2.0;
+            double y = minimum.getY();
+            double z = (minimum.getZ() + maximum.getZ()) / 2.0;
+            String worldStr = "world";
+            String uuid = UUID.randomUUID().toString();
+
+            String path = "plots." + uuid;
+            plotsManager.getConfig().set(path + ".x", x);
+            plotsManager.getConfig().set(path + ".y", y);
+            plotsManager.getConfig().set(path + ".z", z);
+            plotsManager.getConfig().set(path + ".world", worldStr);
+            plotsManager.saveConfig();
+
+
+
+            try {
+                File file = new File(plugin.getDataFolder() + "/apartments/smallPlots.yml");
+                String yamlString = null;
+                try {
+                    byte[] fileBytes = Files.readAllBytes(Paths.get(file.getPath()));
+                    yamlString = new String(fileBytes);
+                } catch (IOException e) {
+                    player.sendMessage("wrong file");
+                    return true;
+                }
+
+                // Parse the data from the YAML string
+                Yaml yaml = new Yaml();
+                Map<String, Object> data = yaml.load(yamlString);
+
+                String lastKey = null;
+                Object lastValue = null;
+                for (Map.Entry<String, Object> entry : data.entrySet()) {
+                    lastKey = entry.getKey();
+                    lastValue = entry.getValue();
+                }
+                data.remove(lastKey);
+                data.put(lastKey, lastValue);
+
+                // Serialize the modified data to YAML
+                DumperOptions options = new DumperOptions();
+                options.setDefaultFlowStyle(DumperOptions.FlowStyle.FLOW);
+                String newYamlString = yaml.dump(data);
+
+                // Write the YAML string to the file
+                try {
+                    FileWriter writer = new FileWriter(file);
+                    writer.write(newYamlString);
+                    writer.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            } catch (Exception e){
+                player.sendMessage(ChatColor.DARK_PURPLE + e.getMessage());
+            }
+        }
+
+        else if (argument.equalsIgnoreCase("set")){
+
+            try {
+                org.bukkit.World bukkitWorld = Bukkit.getWorld("world");
+                World world = BukkitAdapter.adapt(bukkitWorld);
+                RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+                RegionManager regions = container.get(world);
+                ProtectedRegion cuboidRegion = regions.getRegion("f18d7be1-74f0-4fe2-bf93-284f4275179d");
+
+                World sk8qWorld = BukkitAdapter.adapt(Bukkit.getWorld("world"));
+                com.sk89q.worldedit.util.Location location1 = new com.sk89q.worldedit.util.Location(sk8qWorld, 25, 5, 25);
+//                LocationFlag locationFlag = new LocationFlag("flag");
+//                Vector3 vector3 = Vector3.at(1, 1, 1);
+//                BlockVector3 blockVector3 = BlockVector3.at(1, 1, 1);
+//                BlockVector2 blockVector2 = BlockVector2.at(1, 1);
+//                Vector2 vector2 = Vector2.at(1 , 1);
+                cuboidRegion.setFlag(Flags.TELE_LOC, location1);
+            } catch (Exception e){
+                player.sendMessage(e.getMessage() + "\n" + e.getCause());
+            }
+        }
+
+
         return true;
     }
 
@@ -317,5 +458,13 @@ public class devTools implements CommandExecutor {
 
         return result;
     }
+
+    class generic<V>{
+        V obj;
+        generic(V obj) {this.obj = obj;}
+        public V getObj() { return this.obj; };
+    }
+
+
 
 }

@@ -6,6 +6,7 @@ import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
+import me.erez.apartments.Files.DataManager;
 import me.erez.apartments.Main;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
@@ -31,9 +32,9 @@ public class Invitation implements CommandExecutor {
         Player player = (Player) sender;
 
         String answer = args[0];
-        String uuid = args[1];
+        String apartmentID = args[1];
 
-        String[] form = {player.getName(), uuid};
+        String[] form = {player.getName(), apartmentID};
         long expiration = 0L;
 
         if (answer.equalsIgnoreCase("accept")){
@@ -55,10 +56,24 @@ public class Invitation implements CommandExecutor {
             RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
             World world = BukkitAdapter.adapt(player.getWorld());
             RegionManager regions = container.get(world);
-            ProtectedRegion region = regions.getRegion(uuid);
+            ProtectedRegion region = regions.getRegion(apartmentID);
             region.getMembers().addPlayer(player.getUniqueId());
+            String owner = region.getOwners().getUniqueIds().iterator().next().toString();
+
+            DataManager dataManager = new DataManager(plugin, player.getUniqueId().toString());
+            dataManager.reloadConfig();
+            DataManager research = new DataManager(plugin, owner);
+            research.reloadConfig();
+            String apartmentType = research.getConfig().getString("owned." + apartmentID + ".type");
+
+            dataManager.getConfig().set("guest." + owner + "." + apartmentID + ".type", apartmentType);
+
+            dataManager.saveConfig();
+
+
 
             player.sendMessage(ChatColor.GREEN + "success");
+            plugin.invites.remove(form);
 
             return true;
 

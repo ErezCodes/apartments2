@@ -6,6 +6,12 @@ apartmentTypes:
     schematic-file-name: V1
     permission: yes
     plotSize: small
+    spawnpoint:
+      x: -1.7
+      y: 3.06250
+      z: 0
+      pitch: -90.0
+      yaw: 5.0
   V3:
     name: V3
     cost: 100
@@ -13,6 +19,12 @@ apartmentTypes:
     schematic-file-name: V3
     permission: yes
     plotSize: small
+    spawnpoint:
+      x: 0.5
+      y: 3
+      z: 1
+      pitch: -90.0
+      yaw: 5.0
   V5:
     name: V5
     cost: 100
@@ -20,34 +32,64 @@ apartmentTypes:
     schematic-file-name: V5
     permission: yes
     plotSize: small
+    spawnpoint:
+      x: -1.4
+      y: 5.5
+      z: 4.5
+      pitch: -90.0
+      yaw: 5.0
   gov:
     name: gov
     cost: 100
     block-icon: barrier
     schematic-file-name: gov
     permission: Governor
-    plotSize: FILL
+    plotSize: medium
+    spawnpoint:
+      x: -19.5
+      y: 0
+      z: 1
+      pitch: -180
+      yaw: 5.0
   pres:
     name: pres
     cost: 100
     block-icon: barrier
     schematic-file-name: pres
     permission: President
-    plotSize: FILL
+    plotSize: small
+    spawnpoint:
+      x: 7.5
+      y: 0
+      z: 0.5
+      pitch: -90.0
+      yaw: 5.0
   kingpin:
     name: kingpin
     cost: 100
     block-icon: barrier
     schematic-file-name: kingpin
     permission: Kingpin
-    plotSize: FILL
+    plotSize: small
+    spawnpoint:
+      x: 0.5
+      y: 6
+      z: -0.5
+      pitch: -90.0
+      yaw: 15.0
   Emp:
     name: Emp
     cost: 100
     block-icon: barrier
-    schematic-file-name: emp
+    schematic-file-name: Emp
     permission: Emperor
     plotSize: big
+    spawnpoint:
+      x: 15
+      y: 0.5
+      z: 0
+      pitch: 90.0
+      yaw: 5.0
   house1:
     name: house1
     cost: 100
@@ -55,13 +97,25 @@ apartmentTypes:
     schematic-file-name: house1
     permission: none
     plotSize: small
+    spawnpoint:
+      x: -4
+      y: 0.6250
+      z: -2
+      pitch: -90.0
+      yaw: 5.0
   house2:
     name: house2
     cost: 100
     block-icon: barrier
     schematic-file-name: house2
     permission: none
-    plotSize: FILL
+    plotSize: small
+    spawnpoint:
+      x: -4.5
+      y: 5
+      z: 5
+      pitch: 180.0
+      yaw: 25.0
   house3:
     name: house3
     cost: 100
@@ -69,13 +123,25 @@ apartmentTypes:
     schematic-file-name: house3
     permission: none
     plotSize: small
+    spawnpoint:
+      x: 7.5
+      y: 5
+      z: -3.5
+      pitch: 90.0
+      yaw: 11.2
   house4:
     name: house4
     cost: 100
     block-icon: barrier
     schematic-file-name: house4
     permission: none
-    plotSize: FILL
+    plotSize: medium
+    spawnpoint:
+      x: 8
+      y: 0
+      z: 8
+      pitch: 180.0
+      yaw: 5.0
   house5:
     name: house5
     cost: 100
@@ -83,7 +149,18 @@ apartmentTypes:
     schematic-file-name: house5
     permission: none
     plotSize: small
+    spawnpoint:
+      x: 7.5
+      y: 97
+      z: -2.2
+      pitch: 0.0
+      yaw: 5.0
 
 defaultValues:
   # Decide what percentage of the original cost a player gets when selling their apartment
-  returnOnSell: 50.0
+  returnOnSell: 100.0
+  MemberMaxHouses: 2
+  KingPinMaxHouses: 3
+  GovernorMaxHouses: 3
+  PresidentMaxHouses: 4
+  EmperorMaxHouses: 4

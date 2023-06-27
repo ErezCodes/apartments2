@@ -27,11 +27,9 @@ import org.bukkit.plugin.RegisteredServiceProvider;
 public final class Main extends JavaPlugin {
 
     //public values
-    public HashMap<String, ArrayList<Apartment>> apartments = new HashMap<>();
     public HashMap<String, ApartmentType> apartmentTypes = new HashMap<>();
     public HashMap<String[], Long> invites = new HashMap<>();
     public HashMap<String, String[]> carryingUUID = new HashMap<>(); //[0] is uuid, [1] is apartmentType
-
 
 
 
@@ -71,6 +69,8 @@ public final class Main extends JavaPlugin {
         log.info(String.format("[%s] Disabled Version %s", getDescription().getName(), getDescription().getVersion()));
 
         carryingUUID.clear();
+        //saveDefaultConfig();
+
     }
 
     //ApartmentType
@@ -83,7 +83,7 @@ public final class Main extends JavaPlugin {
             Material icon = Material.matchMaterial(getConfig().getString(path + ".block-icon"));
             String schematicFileName = getConfig().getString(path + ".schematic-file-name");
             String plotSize = getConfig().getString(path + ".plotSize");
-            apartmentTypes.put(name, new ApartmentType(name, cost, icon, schematicFileName, plotSize));
+            apartmentTypes.put(name, new ApartmentType(name, cost, icon, schematicFileName, plotSize, type));
         }
     }
 
@@ -106,47 +106,6 @@ public final class Main extends JavaPlugin {
     }
 
 
-    //apartments.yml
-    public void saveAll() {
-
-        for (String uuid : apartments.keySet()) {
-            DataManager dataManager = new DataManager(this, uuid);
-            ArrayList<Apartment> arrayList = apartments.get(uuid);
-            if (arrayList.isEmpty()) {
-                File file = new File(getDataFolder() + "/apartments", uuid + ".yml");
-                if (file.exists())
-                    file.delete();
-                break;
-            }
-
-            dataManager.reloadConfig();
-            //let's say that you can't have the same apartmentType twice
-            for (Apartment apartment : arrayList) {
-
-                ApartmentType apartmentType = apartment.getApartmentType();
-                String name = apartmentType.getName();
-                FileConfiguration configuration = dataManager.getConfig();
-
-                String owner = apartment.getOwner();
-                //String edge1 = apartment.getEdge1().toString();
-                //String edge2 = apartment.getEdge2().toString();
-
-                configuration.set(name + ".owner", owner);
-                //configuration.set(name + ".edge1", edge1);
-                //configuration.set(name + ".edge2", edge2);
-                for (String member : apartment.getPlayers())
-                    configuration.set(name + ".players", member);
-
-                dataManager.saveConfig();
-
-
-            }
-
-
-        }
-
-
-    }
 
 
 

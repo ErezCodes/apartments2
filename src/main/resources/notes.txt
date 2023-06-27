@@ -9,21 +9,10 @@ original post: https://builtbybit.com/threads/custom-apartment-plugin-needed.712
 
 To do list:
 
-- something went wrong with buying an apartment, smallPlots doesn't get updated, Erez.yml doesn't get updated
-(maybe I corrupted regions.yml?)
+    - put the plot on top of the available plots config when sold (x)
+    - apartments setHomePoint (?)
 
-
-- my apartments (V)
-- sell apartment
-    - put the plot on top of the available plots config when sold
-- make it so that you won't be able to own the same apartment type more than once (V)
-- inviting people (V)
-- permission flags
-- apartments home
-    - apartments setHomePoint
-- apartments visit
-
-- medium/big plots support?
+- medium/big plots support? (check)
 - GroupManager support
 
 - command fillers
