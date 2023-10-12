@@ -7,6 +7,8 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 
+import static me.erez.apartments.Utilities.Utils.Strings.formatMoney;
+
 public class ApartmentType {
 
     private String name;
@@ -14,9 +16,6 @@ public class ApartmentType {
     private Material icon;
     private String schematicFileName;
     private String plotSize;
-
-
-
     private String type;
 
     public ApartmentType(String name, double cost, Material icon, String schematicFileName, String plotSize, String type) {
@@ -29,7 +28,7 @@ public class ApartmentType {
     }
 
     public ItemStack toItem(){
-        ItemStack item = Utils.Items.createGuiItemSimple(icon, ChatColor.GREEN + name, ChatColor.DARK_GREEN + "Cost: $" + cost);
+        ItemStack item = Utils.Items.createGuiItemSimple(icon, ChatColor.GREEN + name, ChatColor.DARK_GREEN + "Cost: $" + formatMoney(cost));
         return item;
     }
     public ItemStack toItemMyApartments(){

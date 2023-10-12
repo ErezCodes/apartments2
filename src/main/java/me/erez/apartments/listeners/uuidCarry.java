@@ -21,6 +21,7 @@ public class uuidCarry implements Listener {
     @EventHandler
     public void eventus(PlayerJoinEvent event) {
         plugin.carryingUUID.put(event.getPlayer().getName(), new String[]{"", ""});
+        //[0] is apartment uuid, [1] is apartmentType
     }
 
     @EventHandler

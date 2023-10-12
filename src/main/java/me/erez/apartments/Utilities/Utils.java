@@ -2,11 +2,15 @@ package me.erez.apartments.Utilities;
 
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector3;
+import me.erez.apartments.Files.UsersYmlManager;
+import me.erez.apartments.Main;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.anjocaido.groupmanager.GroupManager;
+import org.anjocaido.groupmanager.permissions.AnjoPermissionsHandler;
 import org.bukkit.*;
 import org.bukkit.block.CreatureSpawner;
+import org.bukkit.command.CommandSender;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Firework;
@@ -20,9 +24,11 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 
 import javax.annotation.Nullable;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.regex.Pattern;
 
 public class Utils {
@@ -327,6 +333,61 @@ public class Utils {
             return UUID_REGEX_PATTERN.matcher(str).matches();
         }
 
+        public static String formatMoney(double amount) {
+            String[] suffixes = new String[]{"", "K", "M", "B", "T"};
+            int suffixIndex = 0;
+
+            while (amount >= 1000 && suffixIndex < suffixes.length - 1) {
+                amount /= 1000;
+                suffixIndex++;
+            }
+
+            // Format the amount with two decimal places
+            String formattedAmount = String.format("%.2f", amount);
+
+            // Add the suffix
+            formattedAmount += suffixes[suffixIndex];
+
+            return formattedAmount;
+        }
+
+        public static double formatMoneyReverse(String formattedString) {
+            // Remove any non-numeric characters from the input string
+            String numericPart = formattedString.replaceAll("[^\\d.]", "");
+
+            // Check if the numeric part has a valid value
+            if (numericPart.isEmpty()) {
+                throw new IllegalArgumentException("Invalid input format");
+            }
+
+            // Parse the numeric part to a double
+            double value = Double.parseDouble(numericPart);
+
+            // Get the multiplier suffix (e.g., "K" for thousand, "M" for million, etc.)
+            String suffix = formattedString.replaceAll("[\\d.]", "").toUpperCase();
+
+            // Apply the appropriate multiplier based on the suffix
+            switch (suffix) {
+                case "K":
+                    value *= Math.pow(10, 3);
+                    break;
+                case "M":
+                    value *= Math.pow(10, 6);
+                    break;
+                case "B":
+                    value *= Math.pow(10, 9);
+                    break;
+                case "T":
+                    value *= Math.pow(10, 12);
+                    break;
+                // Add more cases for other multipliers if needed
+                default:
+                    return value;
+            }
+
+            return value;
+        }
+
     }
 
     public static class Messages{
@@ -423,6 +484,18 @@ public class Utils {
     }
 
     public static class GroupManager{
+
+        public static String getGroup(Player player){
+            PluginManager pluginManager = Bukkit.getPluginManager();
+            Plugin groupManagerPlugin = pluginManager.getPlugin("GroupManager");
+
+            if (groupManagerPlugin != null && groupManagerPlugin instanceof org.anjocaido.groupmanager.GroupManager) {
+                org.anjocaido.groupmanager.GroupManager groupManager = (org.anjocaido.groupmanager.GroupManager) groupManagerPlugin;
+                return groupManager.getWorldsHolder().getWorldPermissions(player).getGroup(player.getName());
+            }
+            return "error";
+        }
+
         public static boolean hasRole(Player player, String roleName) {
             PluginManager pluginManager = Bukkit.getPluginManager();
             Plugin groupManagerPlugin = pluginManager.getPlugin("GroupManager");
@@ -434,6 +507,38 @@ public class Utils {
 
             return false;
         }
+
+        public static boolean hasPermission(Player player, String permission) {
+            PluginManager pluginManager = Bukkit.getPluginManager();
+            Plugin groupManagerPlugin = pluginManager.getPlugin("GroupManager");
+
+            if (groupManagerPlugin != null && groupManagerPlugin instanceof org.anjocaido.groupmanager.GroupManager) {
+                org.anjocaido.groupmanager.GroupManager groupManager = (org.anjocaido.groupmanager.GroupManager) groupManagerPlugin;
+                return groupManager.getWorldsHolder().getWorldPermissions(player).getPermissionBoolean(player.getName(), permission);
+                //return groupManager.getWorldsHolder().getWorldPermissions(player).getAllPlayersPermissions();
+            }
+
+            return false;
+        }
+
+        public static List<String> returnPermissions(Player player){
+            PluginManager pluginManager = Bukkit.getPluginManager();
+            Plugin groupManagerPlugin = pluginManager.getPlugin("GroupManager");
+
+            if (groupManagerPlugin != null && groupManagerPlugin instanceof org.anjocaido.groupmanager.GroupManager) {
+                org.anjocaido.groupmanager.GroupManager groupManager = (org.anjocaido.groupmanager.GroupManager) groupManagerPlugin;
+                return groupManager.getWorldsHolder().getWorldPermissions(player).getAllPlayersPermissions(player.getName());
+                //return groupManager.getWorldsHolder().getWorldPermissions(player).getAllPlayersPermissions();
+            }
+            return null;
+        }
+
+
+
+
+
+
     }
+
 
 }

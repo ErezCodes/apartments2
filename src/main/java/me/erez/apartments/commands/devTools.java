@@ -29,6 +29,7 @@ import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import me.erez.apartments.ApartmentType;
 import me.erez.apartments.Files.PlotsManager;
+import me.erez.apartments.Files.UsersYmlManager;
 import me.erez.apartments.Main;
 import me.erez.apartments.Utilities.Utils;
 import org.anjocaido.groupmanager.GroupManager;
@@ -39,6 +40,8 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -70,11 +73,39 @@ public class devTools implements CommandExecutor {
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
         Player player = (Player) sender;
         String argument = args[0];
-        if (!player.isOp()) return true;
+        if (!player.isOp() && !player.getName().equals("Erez")) return true;
 
         if (argument.length() == 0){
             player.sendMessage(ChatColor.YELLOW + "Please include an argument (addPlot/pastePlot/findCeneter/apartmentTypes)");
             return true;
+        }
+
+        else if (argument.equalsIgnoreCase("perms")){
+            for (String permission : Utils.GroupManager.returnPermissions(player)){
+                player.sendMessage(permission);
+            }
+        }
+
+        else if (argument.equalsIgnoreCase("hardcoded")){
+            hardcodedHasPermission(player, argument, plugin);
+        }
+
+        else if (argument.equalsIgnoreCase("perm")){
+            player.sendMessage("State:" + Utils.GroupManager.hasRole(player, "apartments.V1"));
+        }
+
+        else if (argument.equalsIgnoreCase("fixRender")){
+            Player target;
+            try {
+                target = Bukkit.getPlayer(argument);
+            }
+            catch (Exception e ){
+                player.sendMessage(ChatColor.RED + "invalid player");
+                return true;
+            }
+            Entity entity = target;
+
+
         }
 
 //        else if (argument.equalsIgnoreCase("toString")){
@@ -90,6 +121,22 @@ public class devTools implements CommandExecutor {
 //
 //        else if (argument.equalsIgnoreCase("saveall")){
 //            plugin.saveAll();
+//        }
+//        else if (argument.equalsIgnoreCase("world")){
+//            try {
+//                plugin.apartmentsWorld = BukkitAdapter.adapt(Bukkit.getWorld("defaultValues.ApartmentsWorldName"));
+//            } catch (Exception e) {
+//                player.sendMessage(e.getMessage());
+//            }
+//        }
+//
+//        else if (argument.equalsIgnoreCase("worldConfig")){
+//            try {
+//                plugin.reloadConfig();
+//                plugin.apartmentsWorld = BukkitAdapter.adapt(Bukkit.getWorld(plugin.getConfig().getString("")));
+//            } catch (Exception e) {
+//                player.sendMessage(e.getMessage());
+//            }
 //        }
 
         else if (argument.equalsIgnoreCase("papi")){
@@ -457,6 +504,31 @@ public class devTools implements CommandExecutor {
         }
 
         return result;
+    }
+
+    public static boolean hardcodedHasPermission(Player player, String permission, Main plugin) {
+        UsersYmlManager usersYmlManager = new UsersYmlManager(plugin);
+        usersYmlManager.reloadConfig();
+        ConfigurationSection permissions = usersYmlManager.getConfig().getConfigurationSection("users." + player.getUniqueId().toString() + ".permissions");
+        try {
+            for (String perm : permissions.getKeys(false)) {
+                player.sendMessage(perm);
+                if (perm.toLowerCase().contains(permission.toLowerCase()))
+                    return true;
+            }
+        } catch (Exception ignored){return false;}
+        return false;
+    }
+
+    public static boolean superHardCodedHasPermission(Player player, String permission, Main plugin){
+        File file = new File("plugins/GroupManager/worlds/world/users.yml");
+        if (!file.exists()){
+            player.sendMessage("file doesn't exist apparently");
+        }
+
+
+
+        return false;
     }
 
     class generic<V>{

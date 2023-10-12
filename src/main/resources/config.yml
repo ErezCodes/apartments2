@@ -164,3 +164,4 @@ defaultValues:
   GovernorMaxHouses: 3
   PresidentMaxHouses: 4
   EmperorMaxHouses: 4
+  ApartmentsWorldName: ApartmentsNew

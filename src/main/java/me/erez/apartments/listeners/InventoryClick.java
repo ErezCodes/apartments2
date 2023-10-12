@@ -32,6 +32,7 @@ import com.sk89q.worldguard.protection.regions.RegionContainer;
 import me.erez.apartments.ApartmentType;
 import me.erez.apartments.Files.DataManager;
 import me.erez.apartments.Files.PlotsManager;
+import me.erez.apartments.Files.UsersYmlManager;
 import me.erez.apartments.Main;
 import me.erez.apartments.Utilities.Utils;
 import net.md_5.bungee.api.chat.ClickEvent;
@@ -56,7 +57,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.*;
 
-import static me.erez.apartments.Utilities.Utils.GroupManager.hasRole;
+import static me.erez.apartments.Utilities.Utils.GroupManager.*;
 
 public class InventoryClick implements Listener {
     private Main plugin;
@@ -88,53 +89,54 @@ public class InventoryClick implements Listener {
             }
 
             if (slot == 4){
-                String uuid = player.getUniqueId().toString();
-                String path = plugin.getDataFolder().getPath() + "/apartments/" + uuid + ".yml";
-                File file = new File(path);
-                if (!file.exists()) {
-                    player.sendMessage(ChatColor.YELLOW + "You don't have any apartments");
-                    player.closeInventory();
-                    return;
-                }
-
-                HashMap<ApartmentType, String> apartmentTypes = new HashMap<>();
-                DataManager dataManager = new DataManager(plugin, uuid);
-                dataManager.reloadConfig();
-                try{
-                    for (String apartment : dataManager.getConfig().getConfigurationSection("owned").getKeys(false)) {
-                        String apartmentType = dataManager.getConfig().getString("owned." + apartment + ".type");
-                        apartmentTypes.put(plugin.apartmentTypes.get(apartmentType), apartment);
-                    }
-                    if (dataManager.getConfig().getConfigurationSection("owned").getKeys(false).isEmpty()){
+                try {
+                    String uuid = player.getUniqueId().toString();
+                    String path = plugin.getDataFolder().getPath() + "/apartments/" + uuid + ".yml";
+                    File file = new File(path);
+                    if (!file.exists()) {
                         player.sendMessage(ChatColor.YELLOW + "You don't have any apartments");
                         player.closeInventory();
                         return;
                     }
 
-                } catch (Exception e){
-                    player.sendMessage(ChatColor.YELLOW + "You don't have any apartments");
-                    player.closeInventory();
-                    return;
-                }
-                int size = apartmentTypes.size();
-                int inventorySize = size / 9;
-                if (size % 9 != 0)
-                    inventorySize++;
-                inventorySize *= 9;
+                    ArrayList<ApartmentType> apartmentTypes = new ArrayList<>();
+                    DataManager dataManager = new DataManager(plugin, uuid);
+                    dataManager.reloadConfig();
+                    try {
+                        for (String apartment : dataManager.getConfig().getConfigurationSection("owned").getKeys(false)) {
+                            String apartmentType = dataManager.getConfig().getString("owned." + apartment + ".type");
+                            apartmentTypes.add(plugin.apartmentTypes.get(apartmentType));
+                        }
+                        if (dataManager.getConfig().getConfigurationSection("owned").getKeys(false).isEmpty()) {
+                            player.sendMessage(ChatColor.YELLOW + "You don't have any apartments");
+                            player.closeInventory();
+                            return;
+                        }
 
-                Inventory myApartments = Bukkit.createInventory(null, inventorySize, ChatColor.GOLD + "My apartments");
+                    } catch (Exception e) {
+                        player.sendMessage(ChatColor.YELLOW + "You don't have any apartments");
+                        player.closeInventory();
+                        return;
+                    }
+                    int size = apartmentTypes.size();
+                    int inventorySize = size / 9;
+                    if (size % 9 != 0)
+                        inventorySize++;
+                    inventorySize *= 9;
+
+                    Inventory myApartments = Bukkit.createInventory(null, inventorySize, ChatColor.GOLD + "My apartments");
 //                for (int i = 0; i < size; i++) {
 //                    myApartments.setItem(i, apartmentTypes.get(i).toItemMyApartments());
 //                }
 
-                int index = 0;
-                for (ApartmentType apartmentType : apartmentTypes.keySet()){
-                    myApartments.setItem(index, apartmentType.toItemMyApartments());
-                    index++;
-                }
+                    int index = 0;
+                    for (ApartmentType apartmentType : apartmentTypes) {
+                        myApartments.setItem(index, apartmentType.toItemMyApartments());
+                        index++;
+                    }
 
-                player.openInventory(myApartments);
-
+                    player.openInventory(myApartments);
+                } catch (Exception ignored){}
             }
 
             if (slot == 2){
@@ -174,19 +176,17 @@ public class InventoryClick implements Listener {
 
             if (inventory.contains(Material.BARRIER) && inventory.contains(Material.PLAYER_HEAD)){
                 event.setCancelled(true);
-                String apartmentID = plugin.carryingUUID.get(event.getView().getPlayer().getName())[0];
-
+                String apartmentID = plugin.carryingUUID.get(player.getName())[0];
                 //guests section
                 if (slot == 2){
 
                     RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
-                    World world = BukkitAdapter.adapt(player.getWorld());
-                    RegionManager regions = container.get(world);
+                    RegionManager regions = container.get(plugin.returnApartmentsWorld());
                     ProtectedRegion region = regions.getRegion(ChatColor.stripColor(apartmentID));
                     Set<UUID> members = region.getMembers().getUniqueIds();
 
                     //remove members
-                    if (event.getClick().equals(ClickType.RIGHT)){
+                    if (event.getClick().equals(ClickType.MIDDLE)){
                         if (members.isEmpty()){
                             player.closeInventory();
                             player.sendMessage(ChatColor.YELLOW + "You don't have any guests to remove");
@@ -239,6 +239,7 @@ public class InventoryClick implements Listener {
                     int index = 0;
                     for (ItemStack skull : availablePlayers){
                         invite.setItem(index, skull);
+                        index++;
                     }
 
                     player.openInventory(invite);
@@ -248,7 +249,7 @@ public class InventoryClick implements Listener {
                 if (slot == 4){
 
                     RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
-                    RegionManager regions = container.get(BukkitAdapter.adapt(player.getWorld()));
+                    RegionManager regions = container.get(plugin.returnApartmentsWorld());
                     ProtectedRegion region = regions.getRegion(plugin.carryingUUID.get(playerName)[0]);
                     Location location = region.getFlag(Flags.TELE_LOC);
                     com.sk89q.worldedit.entity.Player sk89qPlayer = BukkitAdapter.adapt(player);
@@ -292,11 +293,6 @@ public class InventoryClick implements Listener {
                 }
 
 
-
-
-
-
-
             }
 
         } catch (Exception ignored){}
@@ -331,7 +327,9 @@ public class InventoryClick implements Listener {
 
                     ItemStack itemStack = event.getInventory().getItem(4);
                     ItemMeta meta = itemStack.getItemMeta();
-                    double cost = Double.parseDouble(meta.getLore().get(0).split("\\$")[1]);
+                    String costStr = meta.getLore().get(0).split("\\$")[1];
+
+                    double cost = Utils.Strings.formatMoneyReverse(costStr);
                     double money = plugin.getEconomy().getBalance(player);
                     if (cost > money) {
                         player.sendMessage(ChatColor.YELLOW + "You don't have enough money to complete that purchase");
@@ -342,20 +340,26 @@ public class InventoryClick implements Listener {
                     player.sendMessage(ChatColor.GREEN + "You have successfully purchased a new " + meta.getDisplayName());
                     String displayName = meta.getDisplayName();
                     displayName = ChatColor.stripColor(displayName);
-                    ApartmentType apartmentType = plugin.apartmentTypes.get(displayName);
+                    ApartmentType apartmentType = null;
+                    for (ApartmentType apartmentTypes: plugin.apartmentTypes.values()){
+                        if (displayName.equalsIgnoreCase(apartmentTypes.getName())) {
+                            apartmentType = apartmentTypes;
+                            break;
+                        }
+                    }
 
-
-                    String name = apartmentType.getName();;
                     String size = apartmentType.getPlotSize();
                     String schematicFileName = apartmentType.getSchematicFileName();
                     UUID ownerUUID = player.getUniqueId();
 
-                    String apartmentID = configActions(schematicFileName, ownerUUID, size, BukkitAdapter.adapt(player));
+                    String type = apartmentType.getType();
+
+                    String apartmentID = configActions(schematicFileName, ownerUUID, size, BukkitAdapter.adapt(player), type, playerName);
 
                     DataManager dataManager = new DataManager(plugin, ownerUUID.toString());
                     dataManager.reloadConfig();
                     String path = "owned." + apartmentID;
-                    dataManager.getConfig().set(path + ".type", displayName);
+                    dataManager.getConfig().set(path + ".type", apartmentType.getType());
                     dataManager.saveConfig();
 
 
@@ -375,13 +379,22 @@ public class InventoryClick implements Listener {
                 ItemMeta meta = currentItem.getItemMeta();
 
                 String name = ChatColor.stripColor(meta.getDisplayName());
-                DataManager dataManager = new DataManager(plugin, event.getView().getPlayer().getUniqueId().toString());
+                String type = "";
+
+                for (ApartmentType apartmentType : plugin.apartmentTypes.values()){
+                    if (ChatColor.stripColor(apartmentType.getName()).equalsIgnoreCase(name)){
+                        type = apartmentType.getType();
+                        break;
+                    }
+                }
+
+                DataManager dataManager = new DataManager(plugin, player.getUniqueId().toString());
                 dataManager.reloadConfig();
 
                 String uuid = null;
 
                 for (String apartment : dataManager.getConfig().getConfigurationSection("owned").getKeys(false)){
-                    if (dataManager.getConfig().getString("owned." + apartment + ".type").equals(name)){
+                    if (dataManager.getConfig().getString("owned." + apartment + ".type").equals(type)){
                         uuid = apartment;
                         break;
                     }
@@ -390,13 +403,13 @@ public class InventoryClick implements Listener {
                 if (uuid == null) return;
 
 
-                String[] formed = {uuid, name};
+                String[] formed = {uuid, type};
                 plugin.carryingUUID.replace(playerName, formed);
 
                 myApartmentMenu(player);
 
-            } catch (Exception ignored){
-                return;
+            } catch (Exception e){
+                player.sendMessage(ChatColor.RED + e.getMessage());
             }
         }
         if (title.equals(ChatColor.GOLD + "Invite guests")){
@@ -416,20 +429,28 @@ public class InventoryClick implements Listener {
 
             DataManager dataManager = new DataManager(plugin, inviter.getUniqueId().toString());
             dataManager.reloadConfig();
-            String apartmentType = dataManager.getConfig().getString("owned." + apartmentUUID + ".type");
+            String type = dataManager.getConfig().getString("owned." + apartmentUUID + ".type");
+            String apartmentTypeName = "";
+            for (ApartmentType apartmentType : plugin.apartmentTypes.values()){
+                if (apartmentType.getType().equalsIgnoreCase(type)){
+                    apartmentTypeName = apartmentType.getName();
+                    break;
+                }
+            }
 
             invited.sendMessage(ChatColor.GOLD + "" + ChatColor.BOLD + inviter.getName() +
-                    " has invited you to their " + apartmentType + " apartment!"
+                    " has invited you to their " + apartmentTypeName + " apartment!"
                     /* + "\n" + "You have 60 seconds before the invitation expires" */);
 
             TextComponent accept = new TextComponent(ChatColor.BOLD + "" + ChatColor.UNDERLINE + "[Click Here]");
             TextComponent continuing = new TextComponent(ChatColor.BOLD + "" +  ChatColor.UNDERLINE + "" + ChatColor.GOLD + " to join their apartment");
 
-            accept.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invitation accept " + apartmentUUID));
-            continuing.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invitation accept " + apartmentUUID));
+            accept.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invitation acceptt " + apartmentUUID));
+            continuing.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/invitation acceptt " + apartmentUUID));
 
 
             invited.spigot().sendMessage(accept, continuing);
+            invited.sendMessage(ChatColor.YELLOW + "(Or type /invitation accept)");
         }
 
         if (title.equals(ChatColor.GOLD + "Current guests")){
@@ -443,8 +464,7 @@ public class InventoryClick implements Listener {
             Utils.Sounds.success((Player) event.getView().getPlayer());
 
             RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
-            World world = BukkitAdapter.adapt(player.getWorld());
-            RegionManager regions = container.get(world);
+            RegionManager regions = container.get(plugin.returnApartmentsWorld());
             ProtectedRegion region = regions.getRegion(apartmentUUID);
             UUID guestUUID = Bukkit.getOfflinePlayer(name).getUniqueId();
             region.getMembers().removePlayer(guestUUID);
@@ -474,8 +494,7 @@ public class InventoryClick implements Listener {
                     String apartmentUUID = plugin.carryingUUID.get(playerName)[0];
 
                     RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
-                    World world = BukkitAdapter.adapt(player.getWorld());
-                    RegionManager regions = container.get(world);
+                    RegionManager regions = container.get(plugin.returnApartmentsWorld());
                     ProtectedRegion region = regions.getRegion(apartmentUUID);
                     String ownerUUID = player.getUniqueId().toString();
 
@@ -517,7 +536,8 @@ public class InventoryClick implements Listener {
 
                     //castMessage("x: " + x + "\n" + "y: " + y + "\n" + "z:" + z + "world: " + world);
 
-                    String worldStr = world.getName();
+                    plugin.reloadConfig();
+                    String worldStr = plugin.getConfig().getString("defaultValues.ApartmentsWorldName");
                     String newID = UUID.randomUUID().toString();
                     String path = "plots." + newID;
 
@@ -528,11 +548,11 @@ public class InventoryClick implements Listener {
                     plotsManager.saveConfig();
 
                     if (size.equalsIgnoreCase("small"))
-                        paste("45", world, x, y, z);
+                        paste("45", x, y, z);
                     if (size.equalsIgnoreCase("medium"))
-                        paste("medium", world, x, y, z);
+                        paste("medium", x, y, z);
                     if (size.equalsIgnoreCase("big"))
-                        paste("big", world, x, y, z);
+                        paste("big", x, y, z);
 
 
                     regions.removeRegion(apartmentUUID);
@@ -594,7 +614,14 @@ public class InventoryClick implements Listener {
                 research.reloadConfig();
 
                 ItemStack itemStack = event.getCurrentItem();
-                String type = ChatColor.stripColor(itemStack.getItemMeta().getDisplayName());
+                String type2 = ChatColor.stripColor(itemStack.getItemMeta().getDisplayName());
+                String type = "";
+                for (ApartmentType apartmentType : plugin.apartmentTypes.values()){
+                    if (type2.equalsIgnoreCase(apartmentType.getName())){
+                        type = apartmentType.getType();
+                        break;
+                    }
+                }
                 String regionID = null;
 
                 for (String apartmentID : research.getConfig().getConfigurationSection("owned").getKeys(false)){
@@ -605,7 +632,7 @@ public class InventoryClick implements Listener {
                 }
 
                 RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
-                RegionManager regions = container.get(BukkitAdapter.adapt(player.getWorld()));
+                RegionManager regions = container.get(plugin.returnApartmentsWorld());
                 ProtectedRegion region = regions.getRegion(regionID);
                 Location location = region.getFlag(Flags.TELE_LOC);
                 com.sk89q.worldedit.entity.Player sk89qPlayer = BukkitAdapter.adapt(player);
@@ -626,7 +653,14 @@ public class InventoryClick implements Listener {
                 research.reloadConfig();
 
                 ItemStack itemStack = event.getCurrentItem();
-                String type = ChatColor.stripColor(itemStack.getItemMeta().getDisplayName());
+                String type2 = ChatColor.stripColor(itemStack.getItemMeta().getDisplayName());
+                String type = "";
+                for (ApartmentType apartmentType : plugin.apartmentTypes.values()){
+                    if (type2.equalsIgnoreCase(apartmentType.getName())){
+                        type = apartmentType.getType();
+                        break;
+                    }
+                }
                 String regionID = null;
 
                 for (String apartmentID : research.getConfig().getConfigurationSection("owned").getKeys(false)){
@@ -649,7 +683,7 @@ public class InventoryClick implements Listener {
                 itemStack.setType(Material.AIR);
 
                 RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
-                RegionManager regions = container.get(BukkitAdapter.adapt(player.getWorld()));
+                RegionManager regions = container.get(plugin.returnApartmentsWorld());
                 ProtectedRegion region = regions.getRegion(regionID);
                 region.getMembers().removePlayer(player.getUniqueId());
 
@@ -748,12 +782,20 @@ public class InventoryClick implements Listener {
                 blacklisted.add(dataManager.getConfig().getString("owned." + uuid + ".type"));
         } catch (Exception ignored){}
 
-        if (!hasRole(player, "Apartments.V1"))
-            blacklisted.add("V1");
-        if (!hasRole(player, "Apartments.V3"))
-            blacklisted.add("V3");
-        if (!hasRole(player, "Apartments.V5"))
-            blacklisted.add("V5");
+
+        try {
+            if (!check(player, "apartments.V1"))
+                blacklisted.add("V1");
+
+            if (!check(player, "apartments.V3"))
+                blacklisted.add("V3");
+
+            if (!check(player, "apartments.V5"))
+                blacklisted.add("V5");
+        } catch (Exception e){
+            player.sendMessage(e.getMessage());
+        }
+
         
         switch(role) {
             case "Emperor":
@@ -791,6 +833,7 @@ public class InventoryClick implements Listener {
         apartmentsForPurchase.setItem(35, emptyPane); apartmentsForPurchase.setItem(44, emptyPane);
 
         int i = 10;
+        HashMap<ApartmentType, Double> priceSorted = new HashMap<>();
         for (ApartmentType apartmentType : plugin.apartmentTypes.values()){
 
             boolean exists = false;
@@ -803,10 +846,30 @@ public class InventoryClick implements Listener {
             }
 
             if (exists) continue;
-            apartmentsForPurchase.setItem(i, apartmentType.toItem());
+            priceSorted.put(apartmentType, apartmentType.getCost());
+        }
+
+        List<Map.Entry<ApartmentType, Double>> sorted = new ArrayList<>(priceSorted.entrySet());
+
+        Collections.sort(sorted, new Comparator<Map.Entry<ApartmentType, Double>>() {
+            @Override
+            public int compare(Map.Entry<ApartmentType, Double> entry1, Map.Entry<ApartmentType, Double> entry2) {
+                return entry1.getValue().compareTo(entry2.getValue());
+            }
+        });
+
+
+
+
+
+
+        for (Map.Entry<ApartmentType, Double> entry : sorted){
+
+            apartmentsForPurchase.setItem(i, entry.getKey().toItem());
             i++;
             if (i % 9 == 8)
                 i += 2;
+
         }
 
 
@@ -814,7 +877,13 @@ public class InventoryClick implements Listener {
     }
 
     public void myApartmentMenu(Player player){
-        String name = plugin.carryingUUID.get(player.getName())[1];
+        String type = plugin.carryingUUID.get(player.getName())[1];
+        String name = "";
+        for (String apartmentType : plugin.apartmentTypes.keySet()){
+            if (type.equalsIgnoreCase(apartmentType)){
+                name = plugin.apartmentTypes.get(apartmentType).getName();
+            }
+        }
         Inventory inventory = Bukkit.createInventory(null, 9, ChatColor.GOLD + ChatColor.stripColor(name));
         ArrayList<String> lorey = new ArrayList<>();
         lorey.add(ChatColor.BOLD + ""  + ChatColor.DARK_RED + "Warning: this action is irreversible");
@@ -829,7 +898,7 @@ public class InventoryClick implements Listener {
                 //ChatColor.BLUE+ "Guests", ChatColor.DARK_BLUE + "Invite friends to your apartment");
         ArrayList<String> lore = new ArrayList<>();
         String left = ChatColor.GREEN + "[Left Click]";
-        String right = ChatColor.RED + "[Right Click]";
+        String right = ChatColor.RED + "[Middle Click]";
         lore.add(left + ChatColor.WHITE + " to invite people");
         lore.add(right + ChatColor.WHITE + " to remove people");
         ItemStack partners = Utils.Items.createGuiItemComplex(Material.PLAYER_HEAD, ChatColor.BLUE + "Guests", lore);
@@ -839,7 +908,7 @@ public class InventoryClick implements Listener {
         player.openInventory(inventory);
     }
 
-    public String configActions(String apartmentSchematicName, UUID ownerUUID, String size, com.sk89q.worldedit.entity.Player sk89qPlayer){
+    public String configActions(String apartmentSchematicName, UUID ownerUUID, String size, com.sk89q.worldedit.entity.Player sk89qPlayer, String type, String ownerName){
         PlotsManager plotsManager = new PlotsManager(plugin, size.toLowerCase());
         plotsManager.reloadConfig();
         String firstUUID = plotsManager.getConfig().getConfigurationSection("plots").getKeys(false).iterator().next();
@@ -850,7 +919,7 @@ public class InventoryClick implements Listener {
         String worldName = plotsManager.getConfig().getString(path + ".world");
         org.bukkit.World bukkitWorld = Bukkit.getWorld(worldName);
         World world = BukkitAdapter.adapt(bukkitWorld);
-        paste(apartmentSchematicName, world, x, y, z);
+        paste(apartmentSchematicName, x, y, z);
         plotsManager.getConfig().set(path, null);
         plotsManager.saveConfig();
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
@@ -885,6 +954,9 @@ public class InventoryClick implements Listener {
         cuboidRegion.setFlag(Flags.CHEST_ACCESS.getRegionGroupFlag(), RegionGroup.MEMBERS);
 
 
+        cuboidRegion.setFlag(Flags.GREET_TITLE, ChatColor.GOLD + ownerName + "'s apartment");
+
+
         double relativeX;
         double relativeY;
         double relativeZ;
@@ -894,13 +966,13 @@ public class InventoryClick implements Listener {
 
         plugin.reloadConfig();
         try {
-            for (String keys : plugin.getConfig().getConfigurationSection("apartmentTypes").getKeys(false)) {
-                if (plugin.getConfig().getString("apartmentTypes." + keys + ".schematic-file-name").equals(apartmentSchematicName)) {
-                    relativeX = x + plugin.getConfig().getDouble("apartmentTypes." + keys + "spawnpoint.x");
-                    relativeY = y + plugin.getConfig().getDouble("apartmentTypes." + keys + "spawnpoint.y");
-                    relativeZ = z + plugin.getConfig().getDouble("apartmentTypes." + keys + "spawnpoint.z");
-                    pitch = plugin.getConfig().getDouble("apartmentTypes." + keys + "spawnpoint.pitch");
-                    yaw = plugin.getConfig().getDouble("apartmentTypes." + keys + "spawnpoint.yaw");
+            for (String keys : plugin.apartmentTypes.keySet()) {
+                if (keys.equalsIgnoreCase(type)) {
+                    relativeX = x + plugin.getConfig().getDouble("apartmentTypes." + keys + ".spawnpoint.x");
+                    relativeY = y + plugin.getConfig().getDouble("apartmentTypes." + keys + ".spawnpoint.y");
+                    relativeZ = z + plugin.getConfig().getDouble("apartmentTypes." + keys + ".spawnpoint.z");
+                    pitch = plugin.getConfig().getDouble("apartmentTypes." + keys + ".spawnpoint.pitch");
+                    yaw = plugin.getConfig().getDouble("apartmentTypes." + keys + ".spawnpoint.yaw");
                     sk89qLocation = new com.sk89q.worldedit.util.Location(world, relativeX, relativeY, relativeZ);
                     sk89qLocation.setPitch((float) pitch);
                     sk89qLocation.setYaw((float) yaw);
@@ -916,7 +988,7 @@ public class InventoryClick implements Listener {
         return firstUUID;
     }
 
-    public void paste(String name, World world, double x, double y, double z){
+    public void paste(String name, double x, double y, double z){
         try {
             Clipboard clipboard = null;
             File file = new File("plugins/WorldEdit/schematics/" + name + ".schem");
@@ -933,7 +1005,7 @@ public class InventoryClick implements Listener {
                 e.printStackTrace();
             }
 
-            try (EditSession editSession = WorldEdit.getInstance().newEditSession(world)) {
+            try (EditSession editSession = WorldEdit.getInstance().newEditSession(plugin.returnApartmentsWorld())) {
                 Operation operation = new ClipboardHolder(clipboard)
                         .createPaste(editSession)
                         .to(BlockVector3.at(x, y, z))
@@ -946,6 +1018,28 @@ public class InventoryClick implements Listener {
         } catch (Exception e){
             e.printStackTrace();
         }
+    }
+
+    public static boolean hardcodedHasPermission(Player player, String permission, Main plugin) {
+        UsersYmlManager usersYmlManager = new UsersYmlManager(plugin);
+        usersYmlManager.reloadConfig();
+        ConfigurationSection permissions = usersYmlManager.getConfig().getConfigurationSection("users." + player.getUniqueId().toString() + ".permissions");
+        try {
+            for (String perm : permissions.getKeys(false)) {
+                if (perm.toLowerCase().contains(permission.toLowerCase()))
+                    return true;
+            }
+        } catch (Exception ignored){return false;}
+        return false;
+    }
+
+    public boolean check(Player player, String permission){
+        for (String permissions : returnPermissions(player)){
+            if (permissions.toLowerCase().contains(permission.toLowerCase()))
+                return true;
+
+        }
+        return false;
     }
 
 }

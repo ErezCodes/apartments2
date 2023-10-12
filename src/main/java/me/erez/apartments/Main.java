@@ -1,11 +1,10 @@
 package me.erez.apartments;
 
+import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.regions.Region;
+import com.sk89q.worldedit.world.World;
 import me.erez.apartments.Files.DataManager;
-import me.erez.apartments.commands.Dinero;
-import me.erez.apartments.commands.Invitation;
-import me.erez.apartments.commands.apartmentsCommand;
-import me.erez.apartments.commands.devTools;
+import me.erez.apartments.commands.*;
 import me.erez.apartments.listeners.InventoryClick;
 import me.erez.apartments.listeners.uuidCarry;
 import org.bukkit.Bukkit;
@@ -29,7 +28,7 @@ public final class Main extends JavaPlugin {
     //public values
     public HashMap<String, ApartmentType> apartmentTypes = new HashMap<>();
     public HashMap<String[], Long> invites = new HashMap<>();
-    public HashMap<String, String[]> carryingUUID = new HashMap<>(); //[0] is uuid, [1] is apartmentType
+    public HashMap<String, String[]> carryingUUID = new HashMap<>(); //[0] is apartment uuid, [1] is apartmentType
 
 
 
@@ -60,6 +59,10 @@ public final class Main extends JavaPlugin {
             getServer().getPluginManager().disablePlugin(this);
             return;
         };
+
+//        //reloadConfig();
+//        org.bukkit.World bukkitWorld = Bukkit.getWorld("ApartmentsNew");
+//        apartmentsWorld = BukkitAdapter.adapt(bukkitWorld);
     }
 
     @Override
@@ -83,8 +86,13 @@ public final class Main extends JavaPlugin {
             Material icon = Material.matchMaterial(getConfig().getString(path + ".block-icon"));
             String schematicFileName = getConfig().getString(path + ".schematic-file-name");
             String plotSize = getConfig().getString(path + ".plotSize");
-            apartmentTypes.put(name, new ApartmentType(name, cost, icon, schematicFileName, plotSize, type));
+            apartmentTypes.put(type, new ApartmentType(name, cost, icon, schematicFileName, plotSize, type));
         }
+    }
+
+    public World returnApartmentsWorld(){
+        reloadConfig();
+        return BukkitAdapter.adapt(Bukkit.getWorld(getConfig().getString("defaultValues.ApartmentsWorldName")));
     }
 
     //Economy
@@ -104,8 +112,6 @@ public final class Main extends JavaPlugin {
     public Economy getEconomy() {
         return econ;
     }
-
-
 
 
 
