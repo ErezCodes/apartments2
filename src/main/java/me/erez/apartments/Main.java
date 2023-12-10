@@ -83,10 +83,11 @@ public final class Main extends JavaPlugin {
             String path = "apartmentTypes." + type;
             String name = getConfig().getString(path + ".name");
             double cost = getConfig().getDouble(path + ".cost");
+            int chests = getConfig().getInt(path + ".chests");
             Material icon = Material.matchMaterial(getConfig().getString(path + ".block-icon"));
             String schematicFileName = getConfig().getString(path + ".schematic-file-name");
             String plotSize = getConfig().getString(path + ".plotSize");
-            apartmentTypes.put(type, new ApartmentType(name, cost, icon, schematicFileName, plotSize, type));
+            apartmentTypes.put(type, new ApartmentType(name, cost, icon, schematicFileName, plotSize, type, chests));
         }
     }
 

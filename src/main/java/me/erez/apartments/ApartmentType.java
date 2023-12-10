@@ -17,18 +17,23 @@ public class ApartmentType {
     private String schematicFileName;
     private String plotSize;
     private String type;
+    final private int chests;
 
-    public ApartmentType(String name, double cost, Material icon, String schematicFileName, String plotSize, String type) {
+    public ApartmentType(String name, double cost, Material icon, String schematicFileName, String plotSize, String type, int chests) {
         this.name = name;
         this.cost = cost;
         this.icon = icon;
         this.schematicFileName = schematicFileName;
         this.plotSize = plotSize;
         this.type = type;
+        this.chests = chests;
     }
 
     public ItemStack toItem(){
-        ItemStack item = Utils.Items.createGuiItemSimple(icon, ChatColor.GREEN + name, ChatColor.DARK_GREEN + "Cost: $" + formatMoney(cost));
+        ArrayList<String> lore = new ArrayList<>();
+        lore.add(ChatColor.DARK_GREEN + "Cost: $" + formatMoney(cost));
+        lore.add(ChatColor.DARK_PURPLE + "Total chests: " + ChatColor.LIGHT_PURPLE + chests);
+        ItemStack item = Utils.Items.createGuiItemComplex(icon, ChatColor.GREEN + name, lore);
         return item;
     }
     public ItemStack toItemMyApartments(){
